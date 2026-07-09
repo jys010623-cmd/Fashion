@@ -13,6 +13,28 @@
   function num(s) { return parseInt(String(s).replace(/[^0-9]/g, ''), 10) || 0; }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function page() { return (location.pathname.split('/').pop() || 'index.html').toLowerCase() || 'index.html'; }
+  function getParam(k) { try { return new URLSearchParams(location.search).get(k); } catch (e) { return null; } }
+
+  /* product catalog (keyed by image file, e.g. product-05) */
+  var CATALOG = {
+    'product-01': { en: 'Soft Tailored Jacket', ko: '오트 베이지 자켓', cat: '아우터', price: 89000, original: 109000, badge: 'NEW' },
+    'product-02': { en: 'Ribbon Shirring Blouse', ko: '아이보리 블라우스', cat: '블라우스', price: 49000 },
+    'product-03': { en: 'Pleated Midi Skirt', ko: '크림 플리츠', cat: '스커트', price: 59000, badge: 'BEST' },
+    'product-04': { en: 'Classic Trench Coat', ko: '베이지 트렌치', cat: '아우터', price: 129000 },
+    'product-05': { en: 'Cable Knit Cardigan', ko: '로즈 니트', cat: '니트', price: 69000 },
+    'product-06': { en: 'Daily Wide Denim', ko: '라이트 블루', cat: '데님', price: 54000, original: 64000, badge: '15%' },
+    'product-07': { en: 'Satin Slip Dress', ko: '로즈 브라운', cat: '원피스', price: 79000 },
+    'product-08': { en: 'Tweed Crop Jacket', ko: '밀크 트위드', cat: '아우터', price: 98000 },
+    'product-09': { en: 'Cotton Logo Tee', ko: '크림 화이트', cat: '티셔츠', price: 29000 },
+    'product-10': { en: 'Stripe Knit Top', ko: '소프트 스트라이프', cat: '니트', price: 42000 },
+    'product-11': { en: 'Pintuck Straight Slacks', ko: '모카 베이지', cat: '팬츠', price: 62000 },
+    'product-12': { en: 'Lace Collar Blouse', ko: '빈티지 아이보리', cat: '블라우스', price: 52000 },
+    'product-13': { en: 'Feminine Mini Dress', ko: '더스티 로즈', cat: '원피스', price: 74000 },
+    'product-14': { en: 'Suede Mary Jane', ko: '브라운', cat: '슈즈', price: 68000 },
+    'product-15': { en: 'Half Moon Shoulder Bag', ko: '카멜', cat: '백', price: 58000 },
+    'product-16': { en: 'Soft Wool Muffler', ko: '오트밀', cat: '액세서리', price: 35000 }
+  };
+  function keyFromSrc(src) { var m = String(src || '').match(/(product-\d+)/); return m ? m[1] : null; }
 
   /* shared styles injected once */
   var css =
@@ -82,8 +104,12 @@
     $$('.products .item').forEach(function (li) {
       var nameEl = li.querySelector('.name'), priceEl = li.querySelector('.price');
       if (!nameEl || !priceEl) return;
-      if (li.querySelector('.addcart')) return;
       var img = li.querySelector('img');
+      /* point the card at its own product detail */
+      var link = li.querySelector('a');
+      var key = keyFromSrc(img ? img.getAttribute('src') : '');
+      if (link && key) link.setAttribute('href', 'product-detail.html?p=' + key);
+      if (li.querySelector('.addcart')) return;
       var price = num(priceEl.textContent);
       var info = li.querySelector('.info') || li;
       var btn = document.createElement('button');
@@ -98,7 +124,33 @@
   }
 
   /* product detail: thumbs, swatches, qty, add/buy, tabs */
+  function applyProduct() {
+    var key = getParam('p');
+    var prod = key && CATALOG[key];
+    if (!prod) return; /* no param -> keep default sample product */
+    var img = 'assets/images/' + key + '.jpg';
+    var main = $('.main-photo img');
+    if (main) { main.src = img; main.alt = prod.en; }
+    var firstThumb = $('.thumbs button img');
+    if (firstThumb) { firstThumb.src = img; firstThumb.alt = prod.en + ' 썸네일'; }
+    var h1 = $('.summary h1'); if (h1) h1.textContent = prod.en;
+    var bcCat = $$('.breadcrumb span')[2]; if (bcCat) bcCat.textContent = prod.cat;
+    var bcName = $('.breadcrumb b'); if (bcName) bcName.textContent = prod.en;
+    document.title = prod.en + ' - MELLOWS';
+    var priceEl = $('.price-main .price'); if (priceEl) priceEl.textContent = won(prod.price);
+    var del = $('.price-main del'), sale = $('.price-main .sale');
+    if (prod.original) {
+      if (del) { del.textContent = won(prod.original); del.style.display = ''; }
+      if (sale) { sale.textContent = Math.round((1 - prod.price / prod.original) * 100) + '%'; sale.style.display = ''; }
+    } else {
+      if (del) del.style.display = 'none';
+      if (sale) sale.style.display = 'none';
+    }
+    var optLabel = $('.option-block .option-title .muted'); if (optLabel) optLabel.textContent = prod.ko;
+  }
+
   function initDetail() {
+    applyProduct();
     var main = $('.main-photo img');
     $$('.thumbs button').forEach(function (b) {
       b.addEventListener('click', function () {
